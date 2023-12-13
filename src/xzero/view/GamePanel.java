@@ -17,13 +17,11 @@ import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
+import xzero.model.Cell;
 import xzero.model.GameModel;
 import xzero.model.Label;
 import xzero.model.Player;
-import xzero.model.events.GameEvent;
-import xzero.model.events.GameListener;
-import xzero.model.events.PlayerActionEvent;
-import xzero.model.events.PlayerActionListener;
+import xzero.model.events.*;
 
 public class GamePanel extends JFrame {
     
@@ -179,6 +177,10 @@ public class GamePanel extends JFrame {
     private void drawLabelOnField(Label l){ 
         
         JButton btn = getButton(l.cell().position());
+        if (btn == null) {
+            return;
+        }
+
         String label_name = !l.getIsNeutral() && l.getOwner() != null ? l.getOwner().name() : "Z";
         btn.setText(label_name);
     }
@@ -199,7 +201,17 @@ public class GamePanel extends JFrame {
         for(Component c : comp)
         {    c.setEnabled(on);   }
     }
-    
+
+    private void refreshLabels() {
+        for (Cell cell : _model.field().cells()) {
+            Label label = cell.label();
+
+            if (label != null) {
+                drawLabelOnField(label);
+            }
+        }
+    }
+
 // ----------------------------- Создаем меню ----------------------------------  
     
     private void createMenu() {
@@ -281,6 +293,15 @@ public class GamePanel extends JFrame {
         @Override
         public void playerExchanged(GameEvent e) {
             drawPlayerOnInfoPanel(e.player());
+        }
+
+        @Override
+        public void magicCombinationProcessed(MagicCombinationEvent e) {
+            refreshLabels();
+
+            String str = "Сработала волшебная комбинация '" + e.combination() + "' !";
+
+            JOptionPane.showMessageDialog(null, str, "Магия!", JOptionPane.INFORMATION_MESSAGE);
         }
     }   
 }

@@ -3,10 +3,7 @@ package xzero.model;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
-import xzero.model.events.GameEvent;
-import xzero.model.events.GameListener;
-import xzero.model.events.PlayerActionEvent;
-import xzero.model.events.PlayerActionListener;
+import xzero.model.events.*;
 import xzero.model.factory.CellFactory;
 import xzero.model.factory.LabelFactory;
 import xzero.model.navigation.Direction;
@@ -44,9 +41,13 @@ public class GameModel {
         // Создаем двух игроков
         Player p;
         PlayerObserver observer = new PlayerObserver();
+        MagicCrossObserver crossObserver = new MagicCrossObserver();
+        MagicArrowObserver arrowObserver = new MagicArrowObserver();
         
         p = new Player(field(), "X");
         //"Следим" за игроком
+        p.addPlayerActionListener(crossObserver);
+        p.addPlayerActionListener(arrowObserver);
         p.addPlayerActionListener(observer);
 
         _playerList.add(p);
@@ -54,6 +55,8 @@ public class GameModel {
         
         p = new Player(field(), "O");
         //"Следим" за игроком
+        p.addPlayerActionListener(crossObserver);
+        p.addPlayerActionListener(arrowObserver);
         p.addPlayerActionListener(observer);
 
         _playerList.add(p);
@@ -138,31 +141,6 @@ public class GameModel {
         return null;
     }
 
-    private Player MagicCombinationsCross(){
-
-        for(int row = 2; row <= field().height()-1; row++)
-        {
-            for(int col = 2; col <= field().width()-1; col++)
-            {
-                Point pos = new Point(col, row);
-
-                boolean isCross = field().isCross(pos);
-
-                if(isCross)
-                {
-                    //Player winner = label(pos).getOwner();
-
-                    //return winner;
-                }
-
-            }
-        }
-        return null;
-    }
-    private Player MagicCombinationsArrow(){
-        return null;
-    }
-
     // ------------------------- Реагируем на действия игрока ------------------
 
     private class PlayerObserver implements PlayerActionListener{
@@ -174,13 +152,6 @@ public class GameModel {
             if(e.player() == activePlayer()){
                 fireLabelIsPlaced(e);
             }
-
-            //TODO
-            // Проверяем наличие волшебной комбинации - крестик
-            Player playerWithCross = MagicCombinationsCross();
-
-            // Проверяем наличие волшебной комбинации - стрела
-            Player playerWithArrow = MagicCombinationsArrow();
 
             // Определяем победителя
             Player winner = determineWinner();
@@ -205,7 +176,125 @@ public class GameModel {
             }
         }
     }
-    
+
+    private class MagicCrossObserver implements PlayerActionListener {
+
+        /**
+         * Чтобы не было цикличного применения волшебных комбинаций, проверяем только комбинации, которые могли
+         * образоваться в результате последнего хода игрока.
+         * Может быть всего 5 вариантов где находится искомая комбинация:
+         * - текущая метка стала в центр креста
+         * - текущая метка стала правым концом
+         * - текущая метка стала левым концом
+         * - текущая метка стала верхним концом
+         * - текущая метка стала нижним концом
+         * @param e событие
+         */
+        @Override
+        public void labelisPlaced(PlayerActionEvent e) {
+            if (e.player() != activePlayer()) {
+                return;
+            }
+
+            Point current = e.label().cell().position();
+
+            boolean applied = applyCombination(current)
+                    || applyCombination(Direction.west().shift().nextPoint(current))
+                    || applyCombination(Direction.east().shift().nextPoint(current))
+                    || applyCombination(Direction.north().shift().nextPoint(current))
+                    || applyCombination(Direction.south().shift().nextPoint(current));
+
+            if (applied) {
+                fireMagicCombination(e.player(), "КРЕСТ");
+            }
+        }
+
+        @Override
+        public void labelIsReceived(PlayerActionEvent e) {
+        }
+
+        private boolean applyCombination(Point pos) {
+            List<Cell> corners = field().findCrossCorners(pos, activePlayer());
+
+            if (corners.isEmpty()) {
+                return false;
+            }
+
+            int changes = 0;
+            for (Cell cell : corners) {
+                Label label = cell.label();
+
+                if (label != null) {
+                    if (label.belongsTo(activePlayer())) {
+                        continue;
+                    }
+                    cell.unsetLabel();
+                }
+
+                label = _labelFactory.createLabel();
+                label.setPlayer(activePlayer());
+                cell.setLabel(label);
+
+                changes++;
+            }
+
+            return changes > 0;
+        }
+    }
+
+    private class MagicArrowObserver implements PlayerActionListener {
+        /**
+         * По отношению к позиции в которую установлена метка на последнем ходу, может быть всего 3 варианта стрелки:
+         * - текущая позиция является вершиной
+         * - текущая позиция является левой стороной
+         * - текущая позиция является правой стороной
+         *
+         * @param e событие
+         */
+        @Override
+        public void labelisPlaced(PlayerActionEvent e) {
+            if (e.player() != activePlayer()) {
+                return;
+            }
+
+            Point current = e.label().cell().position();
+
+            boolean applied = applyCombination(e, current)
+                    || applyCombination(e, Direction.northWest().shift().nextPoint(current))
+                    || applyCombination(e, Direction.northEast().shift().nextPoint(current));
+
+            if (applied) {
+                fireMagicCombination(e.player(), "СТРЕЛКА ВВЕРХ");
+            }
+        }
+
+        @Override
+        public void labelIsReceived(PlayerActionEvent e) {
+        }
+
+        private boolean applyCombination(PlayerActionEvent e, Point pos) {
+            MagicArrow arrow = field().findMagicArrow(pos);
+
+            if (arrow == null) {
+                return false;
+            }
+
+            arrow.replaceableCell().unsetLabel();
+
+            Label label = _labelFactory.createLabel();
+            label.setPlayer(arrow.winner());
+
+            arrow.replaceableCell().setLabel(label);
+
+            // Если заменена только что установленная метка.
+            if (e.label().cell() == null) {
+                e.setLabel(label);
+            }
+
+            return true;
+        }
+    }
+
 // ------------------------ Порождает события игры ----------------------------
     
     // Список слушателей
@@ -240,8 +329,17 @@ public class GameModel {
         {
             ((GameListener)listner).playerExchanged(event);
         }
-    }     
-    
+    }
+
+    protected void fireMagicCombination(Player p, String combination) {
+        MagicCombinationEvent event = new MagicCombinationEvent(this, p, combination);
+
+        for (Object listener : _listenerList)
+        {
+            ((GameListener)listener).magicCombinationProcessed(event);
+        }
+    }
+
 // --------------------- Порождает события, связанные с игроками -------------
     
     // Список слушателей

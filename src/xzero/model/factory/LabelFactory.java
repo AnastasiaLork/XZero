@@ -21,6 +21,6 @@ public class LabelFactory {
     private boolean needNeutral() {
         int value = _random.nextInt(100);
 
-        return value < 20;
+        return value < 10;
     }
 }

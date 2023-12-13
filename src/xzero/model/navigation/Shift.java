@@ -1,5 +1,5 @@
 package xzero.model.navigation;
-
+import java.awt.*;
 /**
  * Смещение в декартовой системе координат
  */
@@ -19,5 +19,12 @@ public class Shift {
     
     public int byVertical(){
         return _vertical;
-    }    
+    }
+
+    public Point nextPoint(Point pos) {
+        Point next = new Point(pos);
+        next.translate(byHorizontal(), byVertical());
+
+        return next;
+    }
 }

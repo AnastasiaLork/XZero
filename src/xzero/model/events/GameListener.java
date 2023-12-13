@@ -8,4 +8,6 @@ import java.util.EventListener;
 public interface GameListener extends EventListener {
     public void gameFinished(GameEvent e);
     public void playerExchanged(GameEvent e);
+
+    void magicCombinationProcessed(MagicCombinationEvent e);
 }
