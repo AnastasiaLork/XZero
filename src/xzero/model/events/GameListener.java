@@ -9,5 +9,6 @@ public interface GameListener extends EventListener {
     public void gameFinished(GameEvent e);
     public void playerExchanged(GameEvent e);
 
+    //Волшебная комбинация обработана
     void magicCombinationProcessed(MagicCombinationEvent e);
 }

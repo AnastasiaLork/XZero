@@ -41,13 +41,11 @@ public class GameModel {
         // Создаем двух игроков
         Player p;
         PlayerObserver observer = new PlayerObserver();
-        MagicCrossObserver crossObserver = new MagicCrossObserver();
-        MagicArrowObserver arrowObserver = new MagicArrowObserver();
+        MagicCombinationObserver combinationObserver = new MagicCombinationObserver();
         
         p = new Player(field(), "X");
         //"Следим" за игроком
-        p.addPlayerActionListener(crossObserver);
-        p.addPlayerActionListener(arrowObserver);
+        p.addPlayerActionListener(combinationObserver);
         p.addPlayerActionListener(observer);
 
         _playerList.add(p);
@@ -55,8 +53,7 @@ public class GameModel {
         
         p = new Player(field(), "O");
         //"Следим" за игроком
-        p.addPlayerActionListener(crossObserver);
-        p.addPlayerActionListener(arrowObserver);
+        p.addPlayerActionListener(combinationObserver);
         p.addPlayerActionListener(observer);
 
         _playerList.add(p);
@@ -177,19 +174,9 @@ public class GameModel {
         }
     }
 
-    private class MagicCrossObserver implements PlayerActionListener {
+    private final ArrayList<MagicCombination> _combinationList = new ArrayList<>(); //Волшебные комбинации, которые нужно проверить
+    private class MagicCombinationObserver implements PlayerActionListener {
 
-        /**
-         * Чтобы не было цикличного применения волшебных комбинаций, проверяем только комбинации, которые могли
-         * образоваться в результате последнего хода игрока.
-         * Может быть всего 5 вариантов где находится искомая комбинация:
-         * - текущая метка стала в центр креста
-         * - текущая метка стала правым концом
-         * - текущая метка стала левым концом
-         * - текущая метка стала верхним концом
-         * - текущая метка стала нижним концом
-         * @param e событие
-         */
         @Override
         public void labelisPlaced(PlayerActionEvent e) {
             if (e.player() != activePlayer()) {
@@ -198,101 +185,22 @@ public class GameModel {
 
             Point current = e.label().cell().position();
 
-            boolean applied = applyCombination(current)
-                    || applyCombination(Direction.west().shift().nextPoint(current))
-                    || applyCombination(Direction.east().shift().nextPoint(current))
-                    || applyCombination(Direction.north().shift().nextPoint(current))
-                    || applyCombination(Direction.south().shift().nextPoint(current));
+            //Добавление комбинаций для проверок
+            _combinationList.add(new MagicCombinationCross((_playerList)));
+            _combinationList.add(new MagicCombinationArrow());
 
-            if (applied) {
-                fireMagicCombination(e.player(), "КРЕСТ");
+            for (MagicCombination magicCombination : _combinationList){
+                if (magicCombination.findMagicCombination(_field, current)) {
+                    fireMagicCombination(e.player(), magicCombination._combinationName);
+                };
             }
+
         }
 
         @Override
         public void labelIsReceived(PlayerActionEvent e) {
         }
 
-        private boolean applyCombination(Point pos) {
-            List<Cell> corners = field().findCrossCorners(pos, activePlayer());
-
-            if (corners.isEmpty()) {
-                return false;
-            }
-
-            int changes = 0;
-            for (Cell cell : corners) {
-                Label label = cell.label();
-
-                if (label != null) {
-                    if (label.belongsTo(activePlayer())) {
-                        continue;
-                    }
-                    cell.unsetLabel();
-                }
-
-                label = _labelFactory.createLabel();
-                label.setPlayer(activePlayer());
-                cell.setLabel(label);
-
-                changes++;
-            }
-
-            return changes > 0;
-        }
-    }
-
-    private class MagicArrowObserver implements PlayerActionListener {
-        /**
-         * По отношению к позиции в которую установлена метка на последнем ходу, может быть всего 3 варианта стрелки:
-         * - текущая позиция является вершиной
-         * - текущая позиция является левой стороной
-         * - текущая позиция является правой стороной
-         *
-         * @param e событие
-         */
-        @Override
-        public void labelisPlaced(PlayerActionEvent e) {
-            if (e.player() != activePlayer()) {
-                return;
-            }
-
-            Point current = e.label().cell().position();
-
-            boolean applied = applyCombination(e, current)
-                    || applyCombination(e, Direction.northWest().shift().nextPoint(current))
-                    || applyCombination(e, Direction.northEast().shift().nextPoint(current));
-
-            if (applied) {
-                fireMagicCombination(e.player(), "СТРЕЛКА ВВЕРХ");
-            }
-        }
-
-        @Override
-        public void labelIsReceived(PlayerActionEvent e) {
-        }
-
-        private boolean applyCombination(PlayerActionEvent e, Point pos) {
-            MagicArrow arrow = field().findMagicArrow(pos);
-
-            if (arrow == null) {
-                return false;
-            }
-
-            arrow.replaceableCell().unsetLabel();
-
-            Label label = _labelFactory.createLabel();
-            label.setPlayer(arrow.winner());
-
-            arrow.replaceableCell().setLabel(label);
-
-            // Если заменена только что установленная метка.
-            if (e.label().cell() == null) {
-                e.setLabel(label);
-            }
-
-            return true;
-        }
     }
 
 // ------------------------ Порождает события игры ----------------------------

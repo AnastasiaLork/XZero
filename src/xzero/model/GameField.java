@@ -43,7 +43,7 @@ public class GameField {
     }
 
     public List<Cell> cells(){
-        return Collections.unmodifiableList(_cellPool);
+        return Collections.unmodifiableList(_cellPool); // список неизменяемых ячеек
     }
     
     public void clear(){
@@ -134,49 +134,6 @@ public class GameField {
         }
         
         return line;
-    }
-
-    public List<Cell> findCrossCorners(Point center, Player player) {
-        List<Cell> corners = new ArrayList<>();
-
-        boolean crossExists = hasLabel(center, player)
-                && hasLabel(Direction.west().shift().nextPoint(center), player)
-                && hasLabel(Direction.east().shift().nextPoint(center), player)
-                && hasLabel(Direction.north().shift().nextPoint(center), player)
-                && hasLabel(Direction.south().shift().nextPoint(center), player);
-
-        if (crossExists) {
-            corners.add(cell(Direction.northWest().shift().nextPoint(center)));
-            corners.add(cell(Direction.southWest().shift().nextPoint(center)));
-            corners.add(cell(Direction.northEast().shift().nextPoint(center)));
-            corners.add(cell(Direction.southEast().shift().nextPoint(center)));
-        }
-
-        return corners;
-    }
-
-    public MagicArrow findMagicArrow(Point topPos) {
-        Label top = label(topPos);
-        Label left = label(Direction.southWest().shift().nextPoint(topPos));
-        Label right = label(Direction.southEast().shift().nextPoint(topPos));
-
-        if (top == null || left == null || right == null) {
-            return null;
-        }
-
-        if (left.belongsTo(top.player()) && right.belongsTo(top.player())) {
-            return null;
-        }
-
-        if (left.belongsTo(top.player())) {
-            return new MagicArrow(top.player(), right.cell());
-        }
-
-        if (right.belongsTo(top.player())) {
-            return new MagicArrow(top.player(), left.cell());
-        }
-
-        return new MagicArrow(left.player(), top.cell());
     }
 
     // ----------------------- Ширина и высота поля ------------------------------
